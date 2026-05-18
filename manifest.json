@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "OKD Pretty Logs",
+  "version": "0.3.0",
+  "description": "Reformats OKD pod logs from JSON into a customisable, virtualized table embedded in the pod page. Works on OKD 3 (Angular) and OKD 4 (React).",
+  "minimum_chrome_version": "114",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*/*"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*"],
+      "js": ["ws-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://*/*"],
+      "js": ["okd-tab-mount.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
+}

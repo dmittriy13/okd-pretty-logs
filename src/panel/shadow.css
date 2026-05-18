@@ -1,0 +1,834 @@
+:host {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --bg-elev: #252525;
+  --bg-row-alt: #1a1a1a;
+  --fg: #e6e6e6;
+  --fg-muted: #9a9a9a;
+  --border: #333;
+  --accent: #4a9eff;
+  --err: #ff6b6b;
+  --wrn: #f7b955;
+  --inf: #7ec4ff;
+  --dbg: #9c9c9c;
+  --trc: #6d6d6d;
+  --ok: #6ddc9a;
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.root {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: 'toolbar' 'main' 'footer';
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.toolbar {
+  grid-area: toolbar;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.toolbar .search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+}
+.toolbar input[type='search'] {
+  flex: 1;
+  min-width: 0;
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.toolbar input[type='search']:focus {
+  border-color: var(--accent);
+}
+.toolbar input[type='search']:focus-visible {
+  outline: none;
+}
+.search-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 80ms linear;
+}
+.search-progress.active {
+  opacity: 1;
+}
+.search-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--accent);
+  animation: search-progress-slide 600ms linear infinite;
+}
+@keyframes search-progress-slide {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+.toolbar button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.toolbar button:hover {
+  background: #2a2a2a;
+}
+.toolbar button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.level-toggles {
+  display: flex;
+  gap: 3px;
+}
+.level-toggles button {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+}
+.level-toggles button[data-level='ERROR'] {
+  color: var(--err);
+}
+.level-toggles button[data-level='WARN'] {
+  color: var(--wrn);
+}
+.level-toggles button[data-level='INFO'] {
+  color: var(--inf);
+}
+.level-toggles button[data-level='DEBUG'] {
+  color: var(--dbg);
+}
+.level-toggles button[data-level='TRACE'] {
+  color: var(--trc);
+}
+.level-toggles button.off {
+  opacity: 0.3;
+}
+
+.badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.badge-neutral {
+  background: #444;
+  color: #ccc;
+}
+.badge-okd3 {
+  background: #c9302c;
+  color: #fff;
+}
+.badge-okd4 {
+  background: #ee0000;
+  color: #fff;
+}
+
+.log-list {
+  grid-area: main;
+  /* overflow-x: auto reveals the scrollbar in nowrap mode (grid grows past
+     container via max-content tracks). In wrap mode the grid template has a
+     `1fr` track which constrains the grid to the container width, so no
+     horizontal overflow happens and the scrollbar stays hidden. */
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 0;
+  scroll-behavior: auto;
+  min-height: 0;
+}
+
+.empty-state {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 24px;
+  gap: 8px;
+}
+.empty-state[hidden] {
+  display: none;
+}
+.empty-state .headline {
+  color: var(--fg);
+  font-size: 13px;
+}
+.empty-state .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 360px;
+}
+
+/* Grid container — grid-template-columns is set inline by JS based on the
+   number of visible fields. The trailing minmax(0, 1fr) track is what makes
+   wrap actually work: 1fr absorbs surplus, min-width:0 lets the cell shrink
+   below intrinsic min-content so long unbreakable strings can wrap. */
+.log-grid {
+  display: grid;
+  align-content: start;
+}
+/* Top/bottom spacer rows: each takes one full grid track; their inline
+   height is updated by the virtualizer to mirror the total height of
+   un-mounted rows above/below the visible window so the scrollbar reflects
+   the entire filtered content. */
+.log-spacer {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+}
+.log-row {
+  display: contents;
+}
+.log-row.raw {
+  display: block;
+  grid-column: 1 / -1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg-muted);
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.log-row > .col {
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+  /* Nowrap cells (structural columns + everything in wrap=off mode) clip
+     and ellipsise overflow rather than letting content escape the pinned
+     ch-width track. Cells with `white-space: pre-wrap` ignore these and
+     wrap their content within the track instead. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Compact, predictable-length columns sit on one line and always take their
+   max-content width — without nowrap, the wrap-able .fill cell would steal
+   space and make the level "INFO" stack vertically. */
+.log-row > .col.ts,
+.log-row > .col.level,
+.log-row > .col.traceid {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Hover the entire row by detecting whether any of its descendants is
+   hovered. `:has()` is the modern way to make this work with display:contents. */
+.log-row:has(> .col:hover) > .col {
+  background: rgba(255, 255, 255, 0.035);
+}
+.log-row.raw:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Nowrap mode (Wrap toggle on): every cell stays on one line. JS sets the
+   grid-template-columns to `repeat(N, max-content)` so the grid grows past
+   the container; the container's overflow-x:auto provides the scrollbar. */
+.root.nowrap .log-list {
+  overflow-x: auto;
+}
+.root.nowrap .log-row > .col {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.root.nowrap .log-row.raw {
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.log-row > .col.empty {
+  color: transparent;
+}
+.log-row.hidden-main > * {
+  display: none;
+}
+.log-row.hidden-main {
+  display: none;
+}
+.log-row > .col.ts {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.log-row > .col.level {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.log-row > .col.logger {
+  color: #89c8ff;
+}
+.log-row > .col.thread {
+  color: #c8c8c8;
+}
+.log-row > .col.traceid {
+  color: #8888ff;
+  font-size: 10px;
+}
+.log-row > .col.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+  text-underline-offset: 2px;
+}
+.log-row > .col.clickable:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+.log-row > .col.flash-copied {
+  background: rgba(109, 220, 154, 0.35);
+  transition: background 0.45s ease-out;
+}
+
+.log-row.lvl-ERROR > .col {
+  background: rgba(255, 107, 107, 0.08);
+}
+.log-row.lvl-ERROR:has(> .col:hover) > .col {
+  background: rgba(255, 107, 107, 0.14);
+}
+.log-row.lvl-ERROR > .col.level {
+  color: var(--err);
+}
+.log-row.lvl-WARN > .col {
+  background: rgba(247, 185, 85, 0.06);
+}
+.log-row.lvl-WARN:has(> .col:hover) > .col {
+  background: rgba(247, 185, 85, 0.12);
+}
+.log-row.lvl-WARN > .col.level {
+  color: var(--wrn);
+}
+.log-row.lvl-INFO > .col.level {
+  color: var(--inf);
+}
+.log-row.lvl-DEBUG > .col.level {
+  color: var(--dbg);
+}
+.log-row.lvl-TRACE > .col.level {
+  color: var(--trc);
+}
+
+.details-row {
+  grid-column: 1 / -1;
+  padding: 0 6px 2px;
+}
+
+/* Unified expansion block used for both stack traces (text) and any field
+   whose value is a non-empty object/array (json). Header is the click target;
+   `copy` surfaces only when expanded.
+   - JSON: header-only when collapsed (no preview clutter — full pretty-print
+     on demand). Most JSON fields aren't pre-readable in 3 lines anyway.
+   - Stack: preview ~4.5em when collapsed, since stack traces are rare and
+     even the first few frames are useful at a glance. */
+.details-wrap {
+  position: relative;
+  margin-top: 1px;
+}
+.details-wrap .details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  user-select: none;
+  border-radius: 2px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.details-wrap .details-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+}
+.details-wrap .details-label {
+  font-weight: bold;
+}
+.details-wrap .details-label::before {
+  content: '▶';
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 9px;
+  transition: transform 0.12s;
+}
+.details-wrap.open .details-label::before {
+  transform: rotate(90deg);
+}
+.details-wrap .details-content {
+  display: block;
+  margin: 0;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.4);
+  white-space: pre;
+  font-size: 11px;
+  overflow: hidden;
+  cursor: pointer;
+  border-left: 2px solid var(--accent);
+}
+/* Collapsed-state preview is now per-field (settings checkbox) — `with-preview`
+   keeps a short visible snippet, `no-preview` hides the body until expanded. */
+.details-wrap.no-preview:not(.open) .details-content {
+  display: none;
+}
+.details-wrap.with-preview:not(.open) .details-content {
+  max-height: 4.5em;
+}
+.details-wrap.open .details-content {
+  max-height: 40vh;
+  overflow: auto;
+}
+.details-row--json .details-wrap .details-content {
+  color: #cfe6ff;
+  border-left-color: var(--inf);
+}
+.details-row--text .details-wrap .details-content {
+  color: #f8a3a3;
+  border-left-color: var(--err);
+}
+.details-wrap .details-copy {
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.details-wrap.open .details-copy {
+  opacity: 1;
+  pointer-events: auto;
+}
+.details-wrap .details-copy:hover {
+  color: var(--fg);
+  border-color: var(--fg-muted);
+}
+.details-wrap .details-copy.copied {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+/* Visual group: the sub-rows belong to the main row above them. A vertical
+   left border using the level color (or default accent) reads as "still part
+   of this entry". A subtle background tint reinforces the group. */
+.details-row {
+  border-left: 2px solid var(--border);
+  margin-left: 6px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.details-row.lvl-ERROR {
+  border-left-color: rgba(255, 107, 107, 0.55);
+  background: rgba(255, 107, 107, 0.04);
+}
+.details-row.lvl-WARN {
+  border-left-color: rgba(247, 185, 85, 0.5);
+  background: rgba(247, 185, 85, 0.03);
+}
+.details-row.lvl-INFO {
+  border-left-color: rgba(126, 196, 255, 0.4);
+}
+.details-row.lvl-DEBUG {
+  border-left-color: rgba(156, 156, 156, 0.4);
+}
+.details-row.lvl-TRACE {
+  border-left-color: rgba(109, 109, 109, 0.4);
+}
+
+.settings-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 90%);
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  padding: 12px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: -3px 0 12px rgba(0, 0, 0, 0.5);
+}
+.settings-drawer[hidden] {
+  display: none;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.settings-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.settings-drawer h3 {
+  font-size: 12px;
+  margin: 12px 0 6px;
+  color: var(--fg-muted);
+}
+.settings-drawer button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.settings-drawer .hint {
+  color: var(--fg-muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.fields-list,
+.level-colors-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fields-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: #1b1b1b;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 3px;
+}
+.fields-list li.dragging {
+  opacity: 0.4;
+}
+.fields-list li.drag-over-before {
+  box-shadow: 0 -2px 0 var(--accent);
+}
+.fields-list li.drag-over-after {
+  box-shadow: 0 2px 0 var(--accent);
+}
+.fields-list .field-row__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fields-list .field-row__opts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 18px;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+.fields-list .field-opt-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+/* Inline group lays out as two stacked sub-rows: pattern input on top,
+   click-action checkboxes (copyable, filterable) on the row below. */
+.fields-list .field-opt-group--inline {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+}
+.fields-list .field-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fields-list .field-opt-group--detail {
+  border-top: 1px dashed var(--border);
+  padding-top: 4px;
+}
+.fields-list .field-opt-group.disabled,
+.fields-list .field-opt.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.fields-list .field-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fields-list .pattern-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fields-list .pattern-opt input {
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1px 4px;
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+.fields-list .chk-opt {
+  cursor: pointer;
+  user-select: none;
+}
+.fields-list .handle {
+  color: var(--fg-muted);
+  cursor: grab;
+  padding: 0 2px;
+}
+.fields-list .field-name {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+}
+.level-colors-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.level-colors-list input[type='color'] {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.level-colors-list .level-label {
+  font-weight: bold;
+  width: 64px;
+}
+.settings-drawer input[type='number'] {
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 2px 4px;
+  width: 80px;
+}
+.settings-drawer input[type='text'] {
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  min-width: 180px;
+}
+.settings-drawer code {
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0 3px;
+  font-size: 10px;
+}
+.settings-actions {
+  margin-top: 12px;
+}
+.reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.reset-btn:hover {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.footer {
+  grid-area: footer;
+  padding: 4px 8px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.status-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+}
+.conn-dot.conn-idle {
+  background: #555;
+}
+.conn-dot.conn-connecting {
+  background: var(--wrn);
+  animation: pulse 1s infinite ease-in-out;
+}
+.conn-dot.conn-open {
+  background: var(--ok);
+  box-shadow: 0 0 5px rgba(109, 220, 154, 0.55);
+}
+.conn-dot.conn-closed {
+  background: var(--err);
+}
+
+.conn-state {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--fg);
+  letter-spacing: 0.4px;
+}
+.reconnect-btn {
+  background: transparent;
+  border: 1px solid var(--wrn);
+  color: var(--wrn);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.reconnect-btn:hover:not(:disabled) {
+  background: var(--wrn);
+  color: #1e1e1e;
+}
+.reconnect-btn[hidden] {
+  display: none;
+}
+.reconnect-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.conn-url {
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+.stat {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.activity {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  height: 10px;
+  width: 18px;
+  opacity: 0.25;
+  transition: opacity 0.3s;
+}
+.activity.live {
+  opacity: 1;
+}
+.activity span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--inf);
+  animation: dotBounce 1s infinite ease-in-out;
+  animation-play-state: paused;
+}
+.activity.live span {
+  animation-play-state: running;
+}
+.activity span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.activity span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+@keyframes dotBounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
