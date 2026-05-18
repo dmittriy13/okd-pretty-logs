@@ -7,7 +7,7 @@ into the native log toolbar reformats the raw JSON stream into a structured
 view, with per-field columns, search, level filtering and pinned column
 widths.
 
-<!-- TODO: add a screenshot or short GIF of the panel in action. -->
+![Pretty panel mounted on a pod's Logs tab](docs/screenshots/panel-overview.jpg)
 
 ## Features
 
@@ -65,13 +65,28 @@ Not published yet — see **From a release** above.
 
 ## Usage
 
-1. Open any pod's **Logs** tab in the OKD console.
-2. Click the **Pretty** button injected into the native toolbar.
-3. Use the toolbar at the top of the overlay to search, filter by level,
-   toggle wrap mode, pause auto-scroll, or open settings.
-4. Click the **⚙** icon to configure which JSON fields render as inline
-   cells vs. detail sub-rows, set short-pattern eliding, level colors,
-   timestamp format, and ring buffer size.
+1. Open any pod's **Logs** tab in the OKD console. The extension injects a
+   **Pretty** checkbox into the native log toolbar:
+
+   ![Pretty checkbox in the native log toolbar](docs/screenshots/native-toolbar-toggle.jpg)
+
+2. Click **Pretty** to mount the overlay. The toolbar above the overlay has
+   search, level toggles, wrap mode, pause auto-scroll and the **⚙** settings
+   button.
+3. Any non-empty object/array field — and any field you explicitly mark as
+   "detail" in settings — renders as an expandable sub-row with a `copy`
+   button:
+
+   ![Expanded detail sub-row with pretty-printed JSON](docs/screenshots/details-row-expanded.jpg)
+
+4. The **⚙** drawer is where you configure per-field behaviour (visibility,
+   drag-to-reorder, click-to-copy / click-to-filter, short-pattern eliding),
+   timestamp pattern, level colors and ring buffer size:
+
+   <p>
+     <img src="docs/screenshots/settings-drawer-fields.jpg" alt="Settings drawer: fields section" width="48%" />
+     <img src="docs/screenshots/settings-drawer-formatting.jpg" alt="Settings drawer: formatting section" width="48%" />
+   </p>
 
 The toggle's state, configuration, and active filters are persisted per
 origin (hashed) in `chrome.storage.sync`.
