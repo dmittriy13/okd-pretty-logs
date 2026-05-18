@@ -37,10 +37,20 @@ widths.
 
 ## Install
 
+### From a release (recommended)
+
+1. Download the latest `okd-pretty-logs-vX.Y.Z.zip` from the
+   [Releases page](https://github.com/dmittriy13/okd-pretty-logs/releases).
+2. Unzip it anywhere.
+3. Open `chrome://extensions`, enable **Developer mode**, click
+   **Load unpacked**, and select the unzipped folder.
+
+No Node / npm required — the zip already contains the built extension.
+
 ### From source
 
 ```sh
-git clone https://github.com/<you>/okd-pretty-logs.git
+git clone https://github.com/dmittriy13/okd-pretty-logs.git
 cd okd-pretty-logs
 npm install
 npm run build
@@ -51,7 +61,7 @@ Then in Chrome: open `chrome://extensions`, enable **Developer mode**, click
 
 ### From the Chrome Web Store
 
-Not published yet — see the **From source** section.
+Not published yet — see **From a release** above.
 
 ## Usage
 

@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+      - name: Verify manifest version matches tag
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          manifest_version="$(node -e "console.log(require('./manifest.json').version)")"
+          if [ "$tag" != "$manifest_version" ]; then
+            echo "Tag v$tag does not match manifest.json version $manifest_version" >&2
+            exit 1
+          fi
+
+      - name: Package dist/ as zip
+        run: |
+          cd dist
+          zip -r "../okd-pretty-logs-${GITHUB_REF_NAME}.zip" .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: okd-pretty-logs-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          body: |
+            ## Install
+
+            1. Download `okd-pretty-logs-${{ github.ref_name }}.zip` below.
+            2. Unzip it.
+            3. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the unzipped folder.
+
+            The unzipped folder *is* the extension — no `npm install` / build needed.
