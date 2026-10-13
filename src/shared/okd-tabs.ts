@@ -6,6 +6,7 @@
 const TABLIST_SELECTORS = [
   '.co-m-horizontal-nav [role="tablist"]',
   '.co-m-horizontal-nav__menu',
+  '.pf-v6-c-tabs__list',
   '.pf-v5-c-tabs__list',
   '.pf-c-tabs__list',
   '.horizontal-nav-tabs',
