@@ -13,7 +13,6 @@ import { formatTimestamp, isTimestampKey, shortenValue } from '../shared/formatt
 import { initSettings } from './settings-view.js';
 import {
   ACTIVITY_DECAY_MS,
-  COL_HORIZONTAL_PADDING_PX,
   FLASH_COPIED_MS,
   MIN_WIDTH_CH,
   OVERSCAN_PX,
@@ -26,9 +25,8 @@ import {
   SCROLL_AT_BOTTOM_TOLERANCE_PX,
   SEARCH_DEBOUNCE_MS,
   STATS_INTERVAL_MS,
-  WRAP_CAP_CH,
 } from './internal/constants.js';
-import { cssEscapeKey, formatShortUrl, isNowrapField } from './internal/helpers.js';
+import { buildGridTracks, cssEscapeKey, formatShortUrl } from './internal/helpers.js';
 import { buildSettingsDrawer, buildFooter } from './internal/dom-builders.js';
 import { buildDetailContent, createDetailsRow } from './internal/details-row.js';
 import { findRowAtY, rebuildPrefixSum, rowTop, totalHeight } from './internal/virtualization.js';
@@ -665,37 +663,13 @@ export function mount(root: ShadowRoot, ctx: PanelContext): PanelHandle {
   }
 
   // Build grid tracks from the visible inline fields using pinned widths
-  // (see columnWidths block above for rationale). Each non-stretcher track
-  // is `${pin}ch` so it stays constant as the user scrolls — no more
-  // shimmy when an outlier value rolls into the visible window.
-  //
-  // Wrap mode: one wrappable field (preferring `message`, falling back to
-  //   the last wrappable in field order) becomes the stretcher and takes
-  //   `minmax(0, 1fr)` to absorb leftover width. All other tracks get
-  //   `${min(pin, WRAP_CAP_CH)}ch` so a single rogue long value can't push
-  //   the stretcher to zero — the cell wraps within its capped track.
-  // No-wrap mode: no stretcher, every track gets `${pin}ch` (uncapped).
-  //   The container's `overflow-x: auto` provides horizontal scroll.
+  // (see columnWidths block above; track rules live in buildGridTracks).
   function applyGridTemplate() {
-    const fields = inlineFields();
-    if (fields.length === 0) {
-      logBody.style.gridTemplateColumns = 'minmax(0, 1fr)';
-      return;
-    }
-    const wrappable = fields.filter((f) => !isNowrapField(f.key));
-    let stretcherKey: string | null = null;
-    if (config.wrapLines && wrappable.length > 0) {
-      const msg = wrappable.find((f) => f.key === 'message');
-      stretcherKey = (msg ?? wrappable[wrappable.length - 1]!).key;
-    }
-    const cap = config.wrapLines ? WRAP_CAP_CH : Number.POSITIVE_INFINITY;
-    const tracks = fields.map((f) => {
-      if (f.key === stretcherKey) return 'minmax(0, 1fr)';
-      const pin = columnWidths.get(f.key) ?? MIN_WIDTH_CH;
-      const w = Math.max(MIN_WIDTH_CH, Math.min(pin, cap));
-      return `calc(${w}ch + ${COL_HORIZONTAL_PADDING_PX}px)`;
-    });
-    logBody.style.gridTemplateColumns = tracks.join(' ');
+    logBody.style.gridTemplateColumns = buildGridTracks(
+      inlineFields(),
+      columnWidths,
+      config.wrapLines,
+    ).join(' ');
   }
 
   function createRow(line: LogLine): RowNodes {

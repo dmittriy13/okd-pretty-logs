@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildGridTracks,
   cssEscapeKey,
   formatShortUrl,
   isComplexValue,
@@ -59,6 +60,45 @@ describe('isNowrapField', () => {
   it('treats arbitrary fields as wrappable', () => {
     expect(isNowrapField('message')).toBe(false);
     expect(isNowrapField('logger_name')).toBe(false);
+  });
+});
+
+describe('buildGridTracks', () => {
+  const widths = new Map([
+    ['@timestamp', 23],
+    ['level', 5],
+    ['logger_name', 120],
+    ['message', 40],
+  ]);
+  const fields = (...keys: string[]) => keys.map((key) => ({ key }));
+
+  it('stretches message in wrap mode and caps the other tracks', () => {
+    expect(buildGridTracks(fields('@timestamp', 'logger_name', 'message'), widths, true)).toEqual([
+      'calc(23ch + 12px)',
+      'calc(80ch + 12px)',
+      'minmax(0, 1fr)',
+    ]);
+  });
+  it('falls back to the last wrappable field as the stretcher', () => {
+    expect(buildGridTracks(fields('logger_name', 'level'), widths, true)).toEqual([
+      'minmax(0, 1fr)',
+      'calc(5ch + 12px)',
+    ]);
+  });
+  it('lets the last track absorb surplus when only nowrap fields are visible', () => {
+    expect(buildGridTracks(fields('@timestamp', 'level'), widths, true)).toEqual([
+      'calc(23ch + 12px)',
+      'minmax(calc(5ch + 12px), 1fr)',
+    ]);
+  });
+  it('keeps uncapped pins in no-wrap mode and lets the last track absorb surplus', () => {
+    expect(buildGridTracks(fields('logger_name', 'message'), widths, false)).toEqual([
+      'calc(120ch + 12px)',
+      'minmax(calc(40ch + 12px), 1fr)',
+    ]);
+  });
+  it('uses a single flexible track when no inline fields are visible', () => {
+    expect(buildGridTracks([], widths, true)).toEqual(['minmax(0, 1fr)']);
   });
 });
 
