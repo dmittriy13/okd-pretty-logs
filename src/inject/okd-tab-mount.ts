@@ -18,6 +18,7 @@ import {
   buildPrettyToggle,
   findLogToolbar,
   PRETTY_TOGGLE_ATTR,
+  setNativeControlsHidden,
   type ToggleHandle,
 } from '../shared/okd-log-toolbar.js';
 import { mount as mountPanel, type PanelHandle, type PanelListener } from '../panel/panel-view.js';
@@ -330,7 +331,7 @@ function ensureToggleInjected() {
   if (toggleHandle && toggleHandle.el.parentElement) {
     toggleHandle.el.parentElement.removeChild(toggleHandle.el);
   }
-  toggleHandle = buildPrettyToggle(refs.variant, TOGGLE_LABEL, prettyActive, (next) => {
+  toggleHandle = buildPrettyToggle(refs, TOGGLE_LABEL, prettyActive, (next) => {
     if (next) activatePretty();
     else deactivatePretty();
   });
@@ -433,6 +434,29 @@ function updateHostGeometry() {
   hostEl.style.height = `${Math.max(0, vh - top)}px`;
 }
 
+// The console's Expand button puts `.co-resource-log` into browser fullscreen,
+// where only that element's subtree is rendered — the overlay has to live
+// inside it to stay visible, and go back to <body> on exit.
+function overlayParent(): HTMLElement {
+  const fs = document.fullscreenElement;
+  if (fs instanceof HTMLElement && savedContentRef && fs.contains(savedContentRef)) return fs;
+  return document.body;
+}
+
+const onFullscreenChange = () => {
+  if (!hostEl) return;
+  const parent = overlayParent();
+  if (hostEl.parentElement === parent) return;
+  try {
+    // moveBefore (Chrome 133+) keeps the panel's scroll position and focus;
+    // older Chrome throws here and falls back to a plain re-append.
+    parent.moveBefore(hostEl, null);
+  } catch {
+    parent.appendChild(hostEl);
+  }
+  geometryUpdate();
+};
+
 function mountOverlay(toolbar: HTMLElement, content: HTMLElement) {
   if (hostEl && hostEl.isConnected) return;
 
@@ -453,8 +477,9 @@ function mountOverlay(toolbar: HTMLElement, content: HTMLElement) {
   // submenus on top of the panel.
   host.style.cssText =
     'position:fixed;z-index:100;visibility:visible;pointer-events:auto;contain:layout paint;';
-  document.body.appendChild(host);
+  overlayParent().appendChild(host);
   hostEl = host;
+  setNativeControlsHidden(true);
   updateHostGeometry();
 
   const shadow = host.attachShadow({ mode: 'open' });
@@ -472,6 +497,7 @@ function mountOverlay(toolbar: HTMLElement, content: HTMLElement) {
 
   window.addEventListener('resize', geometryUpdate);
   window.addEventListener('scroll', geometryUpdate, { passive: true, capture: true });
+  document.addEventListener('fullscreenchange', onFullscreenChange);
   resizeObserver = new ResizeObserver(geometryUpdate);
   resizeObserver.observe(toolbar);
   resizeObserver.observe(content);
@@ -481,6 +507,7 @@ function mountOverlay(toolbar: HTMLElement, content: HTMLElement) {
 function unmountOverlay() {
   window.removeEventListener('resize', geometryUpdate);
   window.removeEventListener('scroll', geometryUpdate, { capture: true });
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
   if (resizeObserver) {
     resizeObserver.disconnect();
     resizeObserver = null;
@@ -497,6 +524,7 @@ function unmountOverlay() {
     hostEl.remove();
     hostEl = null;
   }
+  setNativeControlsHidden(false);
   document.body.style.overflow = savedBodyOverflow;
   document.documentElement.style.overflow = savedHtmlOverflow;
   savedToolbarRef = null;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OKD Pretty Logs",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Reformats OKD pod logs from JSON into a customisable, virtualized table embedded in the pod page. Works on OKD 3 (Angular) and OKD 4 (React).",
   "minimum_chrome_version": "114",
   "permissions": ["storage"],
