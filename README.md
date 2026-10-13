@@ -15,7 +15,11 @@ widths.
   user can reach. URL-pattern detection picks the right variant (OKD 3 vs
   OKD 4) automatically.
 - **Native toolbar integration.** Injects a `Pretty` toggle into the native
-  log-viewer toolbar; staying off-toggle leaves the OKD UI untouched.
+  log-viewer toolbar; staying off-toggle leaves the OKD UI untouched. Works
+  with both PatternFly 5 and PatternFly 6 builds of the OKD 4 console. On
+  PatternFly 6 the native log controls the overlay replaces (pause,
+  container, Options, search, log type) are hidden while Pretty is on, and
+  the native **Expand** (fullscreen) button keeps the overlay.
 - **Virtualized table.** Only rows around the visible viewport are mounted;
   scrolls smoothly through tens of thousands of entries.
 - **Pinned column widths.** Columns don't shimmy as outliers scroll in and

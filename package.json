@@ -1,6 +1,6 @@
 {
   "name": "okd-pretty-logs",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Chrome extension that reformats OKD pod logs from JSON into a virtualized, customisable table embedded in the pod page.",
   "type": "module",
